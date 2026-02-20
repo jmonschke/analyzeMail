@@ -3,6 +3,7 @@ from __future__ import annotations
 import mailbox
 import os
 import re
+from collections.abc import Iterator
 from datetime import timezone
 from email.message import Message
 from email.utils import parseaddr, parsedate_to_datetime
@@ -55,24 +56,18 @@ def _message_size_bytes(message: Message) -> int:
         return len(str(message))
 
 
-def parse_mbox(path: str) -> tuple[tuple[ParsedMessage, ...], ParseStats, tuple[str, ...]]:
+def iter_parsed_mbox(path: str) -> Iterator[tuple[ParsedMessage | None, tuple[str, ...]]]:
     if not os.path.exists(path):
         raise FileNotFoundError(f"mbox path does not exist: {path}")
-
-    warnings: list[str] = []
-    parsed_messages: list[ParsedMessage] = []
-    total_messages = 0
-    skipped_messages = 0
 
     mbox = mailbox.mbox(path)
     try:
         for key in mbox.iterkeys():
-            total_messages += 1
+            warnings: list[str] = []
             try:
                 message = mbox.get_message(key)
                 if message is None:
-                    skipped_messages += 1
-                    warnings.append(f"Message key {key}: empty message")
+                    yield None, (f"Message key {key}: empty message",)
                     continue
 
                 date_utc = None
@@ -86,9 +81,9 @@ def parse_mbox(path: str) -> tuple[tuple[ParsedMessage, ...], ParseStats, tuple[
                 from_address = parseaddr(message.get("From", ""))[1].strip().lower()
                 from_domain = from_address.split("@", 1)[1] if "@" in from_address else ""
 
-                parsed_messages.append(
+                yield (
                     ParsedMessage(
-                        index=len(parsed_messages),
+                        index=-1,
                         message_id=_normalize_message_id(message.get("Message-ID")),
                         in_reply_to=_normalize_message_id(message.get("In-Reply-To")),
                         references=_extract_references(message.get("References")),
@@ -102,13 +97,46 @@ def parse_mbox(path: str) -> tuple[tuple[ParsedMessage, ...], ParseStats, tuple[
                         auto_submitted=(message.get("Auto-Submitted") or "").strip().lower() or None,
                         x_gmail_labels=message.get("X-Gmail-Labels"),
                         size_bytes=_message_size_bytes(message),
-                    )
+                    ),
+                    tuple(warnings),
                 )
             except Exception as exc:
-                skipped_messages += 1
-                warnings.append(f"Message key {key}: parse error: {exc}")
+                yield None, (f"Message key {key}: parse error: {exc}",)
     finally:
         mbox.close()
+
+
+def parse_mbox(path: str) -> tuple[tuple[ParsedMessage, ...], ParseStats, tuple[str, ...]]:
+    warnings: list[str] = []
+    parsed_messages: list[ParsedMessage] = []
+    total_messages = 0
+    skipped_messages = 0
+
+    for parsed_message, message_warnings in iter_parsed_mbox(path):
+        total_messages += 1
+        warnings.extend(message_warnings)
+        if parsed_message is None:
+            skipped_messages += 1
+            continue
+
+        parsed_messages.append(
+            ParsedMessage(
+                index=len(parsed_messages),
+                message_id=parsed_message.message_id,
+                in_reply_to=parsed_message.in_reply_to,
+                references=parsed_message.references,
+                date_utc=parsed_message.date_utc,
+                from_address=parsed_message.from_address,
+                from_domain=parsed_message.from_domain,
+                subject=parsed_message.subject,
+                list_id=parsed_message.list_id,
+                list_unsubscribe=parsed_message.list_unsubscribe,
+                precedence=parsed_message.precedence,
+                auto_submitted=parsed_message.auto_submitted,
+                x_gmail_labels=parsed_message.x_gmail_labels,
+                size_bytes=parsed_message.size_bytes,
+            )
+        )
 
     stats = ParseStats(
         total_messages=total_messages,

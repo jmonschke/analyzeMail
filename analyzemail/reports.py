@@ -18,6 +18,25 @@ class ReportPaths:
     gmail_filters_path: Path
 
 
+def create_report_paths(out_dir: str, now: datetime) -> ReportPaths:
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    now = now.astimezone(timezone.utc)
+
+    base_dir = Path(out_dir)
+    output_dir = base_dir / f"scan_{now.strftime('%Y%m%d_%H%M%SZ')}"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    return ReportPaths(
+        output_dir=output_dir,
+        summary_path=output_dir / "summary.txt",
+        candidate_senders_path=output_dir / "candidate_senders.csv",
+        candidate_messages_path=output_dir / "candidate_messages.csv",
+        candidate_threads_path=output_dir / "candidate_threads.csv",
+        gmail_filters_path=output_dir / "gmail_filters.txt",
+    )
+
+
 def _format_age_filter(min_age_days: int) -> str:
     if min_age_days % 365 == 0:
         return f"older_than:{min_age_days // 365}y"
@@ -66,6 +85,62 @@ def _build_summary_text(
         f"candidate_messages: {len(candidate_messages)}",
         f"candidate_estimated_bytes: {candidate_bytes} ({_format_bytes(candidate_bytes)})",
         f"warnings: {len(warnings)}",
+        "",
+        "top_candidate_senders_by_bytes:",
+    ]
+
+    if not top_senders:
+        lines.append("- none")
+    else:
+        for sender in top_senders:
+            lines.append(
+                "- "
+                f"{sender.sender} | candidate_bytes={sender.candidate_estimated_bytes} "
+                f"({_format_bytes(sender.candidate_estimated_bytes)}) "
+                f"candidate_messages={sender.candidate_message_count} "
+                f"confidence={sender.confidence}"
+            )
+
+    lines.append("")
+    lines.append("top_candidate_threads_by_bytes:")
+    if not top_threads:
+        lines.append("- none")
+    else:
+        for thread in top_threads:
+            lines.append(
+                "- "
+                f"{thread.thread_id} | candidate_bytes={thread.candidate_estimated_bytes} "
+                f"({_format_bytes(thread.candidate_estimated_bytes)}) "
+                f"candidate_messages={thread.candidate_message_count} "
+                f"dominant_sender={thread.dominant_sender} "
+                f"confidence={thread.confidence}"
+            )
+
+    return "\n".join(lines) + "\n"
+
+
+def build_summary_text_from_totals(
+    parse_stats: ParseStats,
+    total_bytes: int,
+    candidate_message_count: int,
+    candidate_bytes: int,
+    senders: tuple[SenderSummary, ...],
+    threads: tuple[ThreadSummary, ...],
+    warning_count: int,
+) -> str:
+    top_senders = [sender for sender in senders if sender.candidate_message_count > 0][:10]
+    top_threads = [thread for thread in threads if thread.candidate_message_count > 0][:10]
+
+    lines = [
+        "analyzemail scan summary",
+        "",
+        f"total_messages_scanned: {parse_stats.total_messages}",
+        f"messages_parsed: {parse_stats.parsed_messages}",
+        f"messages_skipped: {parse_stats.skipped_messages}",
+        f"total_estimated_bytes: {total_bytes} ({_format_bytes(total_bytes)})",
+        f"candidate_messages: {candidate_message_count}",
+        f"candidate_estimated_bytes: {candidate_bytes} ({_format_bytes(candidate_bytes)})",
+        f"warnings: {warning_count}",
         "",
         "top_candidate_senders_by_bytes:",
     ]
@@ -236,6 +311,45 @@ def _write_gmail_filters(
             handle.write("\n\n")
 
 
+def write_candidate_senders_report(path: Path, senders: tuple[SenderSummary, ...]) -> None:
+    _write_candidate_senders(path, senders)
+
+
+def write_candidate_threads_report(path: Path, threads: tuple[ThreadSummary, ...]) -> None:
+    _write_candidate_threads(path, threads)
+
+
+def write_gmail_filters_report(
+    path: Path,
+    senders: tuple[SenderSummary, ...],
+    min_age_days: int,
+    max_senders_per_filter: int,
+) -> None:
+    _write_gmail_filters(
+        path,
+        senders,
+        min_age_days=min_age_days,
+        max_senders_per_filter=max_senders_per_filter,
+    )
+
+
+def write_empty_candidate_threads(path: Path) -> None:
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(
+            [
+                "thread_id",
+                "message_count",
+                "estimated_bytes",
+                "candidate_message_count",
+                "candidate_estimated_bytes",
+                "dominant_sender",
+                "confidence",
+                "message_indices",
+            ]
+        )
+
+
 def write_reports(
     parse_stats: ParseStats,
     classifications: tuple[ClassificationResult, ...],
@@ -247,21 +361,9 @@ def write_reports(
     min_age_days: int,
     max_senders_per_filter: int,
 ) -> ReportPaths:
-    if now.tzinfo is None:
-        now = now.replace(tzinfo=timezone.utc)
-    now = now.astimezone(timezone.utc)
+    paths = create_report_paths(out_dir=out_dir, now=now)
 
-    base_dir = Path(out_dir)
-    output_dir = base_dir / f"scan_{now.strftime('%Y%m%d_%H%M%SZ')}"
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    summary_path = output_dir / "summary.txt"
-    candidate_senders_path = output_dir / "candidate_senders.csv"
-    candidate_messages_path = output_dir / "candidate_messages.csv"
-    candidate_threads_path = output_dir / "candidate_threads.csv"
-    gmail_filters_path = output_dir / "gmail_filters.txt"
-
-    summary_path.write_text(
+    paths.summary_path.write_text(
         _build_summary_text(
             parse_stats=parse_stats,
             classifications=classifications,
@@ -271,21 +373,14 @@ def write_reports(
         ),
         encoding="utf-8",
     )
-    _write_candidate_senders(candidate_senders_path, senders)
-    _write_candidate_messages(candidate_messages_path, classifications)
-    _write_candidate_threads(candidate_threads_path, threads)
+    _write_candidate_senders(paths.candidate_senders_path, senders)
+    _write_candidate_messages(paths.candidate_messages_path, classifications)
+    _write_candidate_threads(paths.candidate_threads_path, threads)
     _write_gmail_filters(
-        gmail_filters_path,
+        paths.gmail_filters_path,
         senders,
         min_age_days=min_age_days,
         max_senders_per_filter=max_senders_per_filter,
     )
 
-    return ReportPaths(
-        output_dir=output_dir,
-        summary_path=summary_path,
-        candidate_senders_path=candidate_senders_path,
-        candidate_messages_path=candidate_messages_path,
-        candidate_threads_path=candidate_threads_path,
-        gmail_filters_path=gmail_filters_path,
-    )
+    return paths

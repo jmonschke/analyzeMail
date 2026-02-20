@@ -38,6 +38,14 @@ analyzemail scan \
   --max-senders-per-filter 25
 ```
 
+By default, scan runs in `lightweight` mode to reduce memory usage on large mbox files. It streams sender/message outputs and leaves `candidate_threads.csv` as header-only.
+
+Use full in-memory thread analysis when needed:
+
+```bash
+analyzemail scan --mbox /path/to/file.mbox --detail-level full
+```
+
 Optional deterministic timestamp for reproducible output:
 
 ```bash

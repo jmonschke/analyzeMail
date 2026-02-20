@@ -67,7 +67,7 @@ def build_threads(classifications: tuple[ClassificationResult, ...]) -> tuple[Th
 
     initial_components = _find_components(adjacency)
 
-    singleton_groups: dict[tuple[str, int], list[int]] = defaultdict(list)
+    singleton_groups: dict[tuple[str, int, str], list[int]] = defaultdict(list)
     for component in initial_components:
         if len(component) != 1:
             continue
@@ -79,7 +79,8 @@ def build_threads(classifications: tuple[ClassificationResult, ...]) -> tuple[Th
         if not subject_key:
             continue
         week_bucket = message.date_utc.toordinal() // 7
-        singleton_groups[(subject_key, week_bucket)].append(index)
+        sender_key = message.from_address or message.from_domain or "<unknown>"
+        singleton_groups[(subject_key, week_bucket, sender_key)].append(index)
 
     for group in singleton_groups.values():
         if len(group) < 2:

@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p2
 issue_id: "002"
 tags: [code-review, architecture, quality]
@@ -75,6 +75,7 @@ The merge inflates thread-level size estimates and can mislead prioritization in
 
 ## Recommended Action
 
+Implement a stricter fallback grouping key that includes sender identity: `(normalized_subject, week_bucket, sender_key)`, where `sender_key` is `from_address` (fallback to domain/unknown). This preserves subject fallback usefulness while preventing cross-sender merges. Add regression tests to confirm same-subject messages from different senders remain separate.
 
 ## Technical Details
 
@@ -98,12 +99,24 @@ The merge inflates thread-level size estimates and can mislead prioritization in
 
 ## Acceptance Criteria
 
-- [ ] Fallback thread grouping no longer merges same-subject messages from different senders by default
-- [ ] Thread-level candidate byte totals remain stable for explicit reply/reference chains
-- [ ] Tests include cross-sender, same-subject fixtures validating no false merges
-- [ ] Existing threading tests continue to pass
+- [x] Fallback thread grouping no longer merges same-subject messages from different senders by default
+- [x] Thread-level candidate byte totals remain stable for explicit reply/reference chains
+- [x] Tests include cross-sender, same-subject fixtures validating no false merges
+- [x] Existing threading tests continue to pass
 
 ## Work Log
+
+### 2026-02-20 - Implementation
+
+**By:** Codex
+
+**Actions:**
+- Updated fallback grouping in `analyzemail/threads.py` to include sender identity in grouping keys
+- Added `test_build_threads_fallback_does_not_merge_different_senders` in `tests/test_threads.py`
+- Ran full test suite: `10 passed`
+
+**Learnings:**
+- Subject-based fallback remains useful when constrained by sender identity, avoiding major false merge cases with minimal complexity
 
 ### 2026-02-20 - Initial Discovery
 

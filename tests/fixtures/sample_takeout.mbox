@@ -1,0 +1,82 @@
+From mailer-daemon@example.com Sat Jan  1 00:00:00 2022
+Date: Sat, 01 Jan 2022 10:00:00 +0000
+From: Deals <deals@example.com>
+To: user@example.net
+Subject: Huge sale this weekend
+Message-ID: <m0@example.com>
+List-Unsubscribe: <mailto:unsubscribe@example.com>
+
+Promo body 0
+
+From mailer-daemon@example.com Sat Jan  8 00:00:00 2022
+Date: Sat, 08 Jan 2022 10:00:00 +0000
+From: Newsletter <newsletter@newsletters.example>
+To: user@example.net
+Subject: January digest and offers
+Message-ID: <m1@example.com>
+List-Id: <newsletters.example>
+
+Promo body 1
+
+From mailer-daemon@example.com Sun Jan  9 00:00:00 2022
+Date: Sun, 09 Jan 2022 11:00:00 +0000
+From: Friend <friend@example.org>
+To: user@example.net
+Subject: Re: Weekend plans
+Message-ID: <m2@example.org>
+In-Reply-To: <friend-seed@example.org>
+References: <friend-seed@example.org>
+
+Personal thread body
+
+From mailer-daemon@example.com Mon Jan 10 00:00:00 2022
+Date: Mon, 10 Jan 2022 12:00:00 +0000
+From: Security Alerts <alerts@bank.example>
+To: user@example.net
+Subject: Your OTP code for login
+Message-ID: <m3@example.org>
+List-Unsubscribe: <mailto:unsubscribe@bank.example>
+
+Security body
+
+From mailer-daemon@example.com Tue Jan 11 00:00:00 2022
+Date: Tue, 11 Jan 2022 12:00:00 +0000
+From: Updates <no-reply@updates.example>
+To: user@example.net
+Subject: Weekly update digest
+Message-ID: <m4@example.org>
+Auto-Submitted: auto-generated
+
+Notification body
+
+From mailer-daemon@example.com Wed Jan 12 00:00:00 2022
+Date: Wed, 12 Jan 2022 12:00:00 +0000
+From: Thread Promo <threadpromo@example.com>
+To: user@example.net
+Subject: Build pipeline updates
+Message-ID: <thread-1@example.com>
+List-Unsubscribe: <mailto:unsubscribe@threadpromo.example>
+
+Thread body 1
+
+From mailer-daemon@example.com Thu Jan 13 00:00:00 2022
+Date: Thu, 13 Jan 2022 12:00:00 +0000
+From: Thread Promo <threadpromo@example.com>
+To: user@example.net
+Subject: Re: Build pipeline updates
+Message-ID: <thread-2@example.com>
+In-Reply-To: <thread-1@example.com>
+References: <thread-1@example.com>
+List-Unsubscribe: <mailto:unsubscribe@threadpromo.example>
+
+Thread body 2
+
+From mailer-daemon@example.com Fri Jan  9 00:00:00 2026
+Date: Fri, 09 Jan 2026 10:00:00 +0000
+From: New Promo <newpromo@example.com>
+To: user@example.net
+Subject: Sale today only
+Message-ID: <m5@example.com>
+List-Unsubscribe: <mailto:unsubscribe@newpromo.example>
+
+Recent promo body

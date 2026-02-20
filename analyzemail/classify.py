@@ -35,6 +35,8 @@ _SECURITY_FINANCE_MARKERS = (
     "bank",
 )
 
+_SENT_LABEL_TOKENS = {"sent", "sent mail", "\\sent"}
+
 
 @dataclass
 class _SenderAggregate:
@@ -64,6 +66,17 @@ def _contains_any(text: str, markers: tuple[str, ...]) -> bool:
 def _is_likely_no_reply_sender(address: str) -> bool:
     local = address.split("@", 1)[0].lower()
     return local.startswith(("noreply", "no-reply", "do-not-reply", "notifications"))
+
+
+def _label_tokens(labels: str | None) -> set[str]:
+    if not labels:
+        return set()
+    tokens = set()
+    for token in labels.split(","):
+        normalized = token.strip().lower()
+        if normalized:
+            tokens.add(normalized)
+    return tokens
 
 
 def classify_messages(
@@ -106,8 +119,8 @@ def classify_messages(
         if _contains_any(subject_lower, _SECURITY_FINANCE_MARKERS):
             excluded_reasons.append("security_or_finance")
 
-        labels = (message.x_gmail_labels or "").lower()
-        if "sent" in labels:
+        labels = _label_tokens(message.x_gmail_labels)
+        if labels.intersection(_SENT_LABEL_TOKENS):
             excluded_reasons.append("sent_mail")
 
         is_replyish = bool(message.in_reply_to or message.references or subject_lower.startswith("re:"))

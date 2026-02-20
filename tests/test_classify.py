@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from dataclasses import replace
 from pathlib import Path
 
 from analyzemail.classify import classify_messages, summarize_senders
@@ -42,3 +43,22 @@ def test_sender_confidence_for_filtering() -> None:
     sender_map = {sender.sender: sender for sender in senders}
     assert sender_map["threadpromo@example.com"].confidence == "high"
     assert sender_map["no-reply@updates.example"].confidence == "low"
+
+
+def test_sent_label_detection_uses_exact_tokens() -> None:
+    messages, _stats, _warnings = parse_mbox(str(_fixture_path()))
+    now = datetime(2026, 2, 20, tzinfo=timezone.utc)
+
+    baseline = messages[0]
+    not_sent_label = replace(baseline, x_gmail_labels="consent, archive")
+    sent_label = replace(baseline, x_gmail_labels="\\Sent, archive")
+
+    results = classify_messages((not_sent_label, sent_label), min_age_days=365, now=now)
+
+    non_sent_result = results[0]
+    assert non_sent_result.is_candidate is True
+    assert "sent_mail" not in non_sent_result.excluded_reasons
+
+    sent_result = results[1]
+    assert sent_result.is_candidate is False
+    assert "sent_mail" in sent_result.excluded_reasons
